@@ -1,26 +1,30 @@
 import calendar
 import pandas as pd
 from datetime import datetime
+import tkinter as tk
+from tkinter import ttk
+import matplotlib.pyplot as plt
+
 
 #Variables
 year = 2023
-solarArraykWp=100
-batteryCapacitykWh=5
+solarArraykWp=81
+batteryCapacitykWh=75
 
-developerX=0
+
+loadImport = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\load.csv")
+tariffStructure = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\tariffStructure.csv")
+
+developerX=1
 if developerX==0:
 
     #imports and starting tables
-    loadImport = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\load.csv")
+
     summerMonths = [1, 2, 3, 4, 11, 12]
-    tariffStructure = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\tariffStructure.csv")
+
     tariffs=pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\tariff.csv")
     solarProfile=pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\solarprofile.csv")
 
-
-    #print(tariffs[(tariffs['Season'] == "Low Demand") & (tariffs['Period'] == "Peak")])
-    #bob = pd.DataFrame(tariffStructure[(tariffStructure['Low-High'] == "Low Demand") ])
-    #print(bob['2'])
 
 
     # Get all the months in the year
@@ -126,6 +130,63 @@ else:
 df['Import Cost']=df['Grid Import kWh']*df['Import Rate']*-1/100
 df['Export Revenue']=df['Grid Export kWh']*df['Export Rate']/100
 
+#---------------------------todo get days empty as a summary
+print(df.columns)
+daysEmpty = df.groupby('Month').apply(lambda x: sum((x['BatterykWh'] == 0)))
+listOfMonths=[1,2,3,4,5,6,7,8,9,10,11,12]
+print(f'days Empty{daysEmpty}')
+
+# Plot the graph
+plt.bar(listOfMonths,daysEmpty)
+plt.xlabel('Month')
+plt.ylabel('Days')
+plt.title('Days Battery is empty in Month ')
+plt.show()
+
+
+#-------------------------------
+
+#todo print chart
+# Assuming the DataFrame is named 'df' and has a 'Date' column and a numeric column to plot
+import matplotlib.pyplot as plt
+
+# Define the range of months and days
+start_month = 4
+end_month = 4
+days_in_month = 31  # Assuming maximum of 31 days in a month
+
+# Create a figure and axes for the plot
+fig, ax = plt.subplots()
+
+# Iterate through each month
+for month in range(start_month, end_month+1):
+    # Filter the DataFrame for the selected month
+    df_month = df[df['Month'] == month]
+
+    # Iterate through each day in the month
+    for day in range(1, days_in_month+1):
+        # Filter the DataFrame for the selected day
+        df_day = df_month[df_month['Day'] == day]
+
+        # Plot the graph for the day
+        ax.plot(df_day['Hour'], df_day['BatterykWh'], label='Month {}, Day {}'.format(month, day))
+
+# Set the x-axis label, y-axis label, and plot title
+ax.set_xlabel('Hour')
+ax.set_ylabel('kWh')
+ax.set_title('Graphs for All Days in Month{}'.format(month))
+
+
+# Place the legend outside the plot to the right
+#ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+# Display the plot
+plt.show()
+#__________________________________________________
+
+
+
+
 #df.loc[df['Month'] == 1, 'ColumnName']
 #Excl Solar Cost,Grid Import kWh,Grid Export kWh
 summary = df.groupby('Month').agg({'Load': 'sum', 'Excl Solar Cost': 'sum', 'Grid Import kWh': 'sum', 'Grid Export kWh': 'sum','Import Cost': 'sum', 'Export Revenue': 'sum'})
@@ -144,9 +205,111 @@ summary_with_total[columns_to_format] = summary_with_total[columns_to_format].ap
 summary_with_total = summary_with_total.rename(index={summary_with_total.index[-1]: 'Total'})
 
 summary_with_total.to_csv('summary.csv', index=False)
-print(summary_with_total)
+#print(summary_with_total)
 #print(df.head())
 
+#####TKINTER GUI
+#____________________________________________________
+
+def show_data_load():
+    # Read the CSV file
+    global loadImport
+    dfLoad = loadImport.copy()
+
+    # Clear existing rows in the tree
+    tree.delete(*tree.get_children())
+
+    # Insert the column headers
+    tree['columns'] = dfLoad.columns.tolist()
+    tree.heading("#0", text="Index")
+    for column in dfLoad.columns.tolist():
+        tree.heading(column, text=column)
+        tree.column(column, width=100)
+
+    # Insert the data rows
+    for index, row in dfLoad.iterrows():
+        tree.insert("", "end", text=index, values=row.tolist())
+
+def close_show_window():
+    # Clear existing rows in the tree
+    tree.delete(*tree.get_children())
+
+def open_new_window():
+    # Read the CSV file
+    global tariffStructure
+    dfLoad = tariffStructure.copy()
+
+    # Clear existing rows in the tree
+    tree.delete(*tree.get_children())
+
+    # Insert the column headers
+    tree['columns'] = tariffStructure.columns.tolist()
+    tree.heading("#0", text="Index")
+    for column in tariffStructure.columns.tolist():
+        tree.heading(column, text=column)
+        tree.column(column, width=100)
+
+    # Insert the data rows
+    for index, row in dfLoad.iterrows():
+        tree.insert("", "end", text=index, values=row.tolist())
+
+all_dataframes = [(name, var) for name, var in locals().items() if isinstance(var, pd.DataFrame)]
+
+def summary_window():
+    # Read the CSV file
+    global summary_with_total
+    print(summary_with_total.index)
+    dfLoad = summary_with_total.copy()
+
+    # Clear existing rows in the tree
+    tree.delete(*tree.get_children())
+
+    # Insert the column headers
+    tree['columns'] = ['#0'] + summary_with_total.columns.tolist()  # Include index column
+    tree.heading("#0", text="Index")
+    for column in summary_with_total.columns.tolist():
+        tree.heading(column, text=column)
+        tree.column(column, width=80)
+
+    # Insert the data rows
+    for index, row in dfLoad.iterrows():
+        tree.insert("", "end", text=index, values=[index] + row.tolist())
+
+all_dataframes = [(name, var) for name, var in locals().items() if isinstance(var, pd.DataFrame)]
+
+
+# Print the names of the DataFrames
+for name, _ in all_dataframes:
+    print(name)
+
+window = tk.Tk()
+window.title("CSV Viewer")
+# Set the window size
+window.geometry("800x600")  # Width x Height
+
+tree = ttk.Treeview(window)
+
+scrollbar = ttk.Scrollbar(window, orient="vertical", command=tree.yview)
+tree.configure(yscroll=scrollbar.set)
+
+button_show_data = tk.Button(window, text="Load", command=show_data_load)
+button_open_new_window = tk.Button(window, text="Tariff Structure", command=open_new_window)
+button_open_summary = tk.Button(window, text="Summary", command=summary_window)
+button_close_show_window = tk.Button(window, text="Close Show Window", command=close_show_window)
+button_close_app = tk.Button(window, text="Close Application", command=window.quit)
+
+button_show_data.pack(pady=10)
+button_open_new_window.pack(pady=10)
+button_open_summary.pack(pady=10)
+button_close_show_window.pack(pady=10)
+button_close_app.pack(pady=10)
+tree.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+# Hide the index column
+tree["show"] = "headings"
+
+window.mainloop()
 
 #OLD
 """

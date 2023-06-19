@@ -1,0 +1,137 @@
+batteryCapacitykWh: Represents the capacity of the battery in kilowatt-hours (kWh).
+
+batterykWh: Represents the remaining capacity of the battery in kilowatt-hours (kWh) at each time step.
+
+close_show_window: A function that clears existing rows in a treeview widget.
+
+columnsToPlot: A list containing the names of columns to plot in the graphs.
+
+day: Represents the day of the month.
+
+dayOfWeek: Represents the day of the week (1 to 7).
+
+daysEmptyMonthList: A list that stores the months.
+
+daysEmptyValueList: A list that stores the number of days.
+
+df: Represents a DataFrame object that stores data.
+
+df_day: Represents a subset of the DataFrame for a specific day.
+
+df_load: Represents a copy of the 'loadImport' DataFrame.
+
+dfLoad: Represents a copy of the 'loadImport' DataFrame.
+
+drainConditionList: A list of conditions for battery draining.
+
+end_month: Represents the ending month for iterating through months.
+
+filteredDf: Represents a filtered subset of the DataFrame.
+
+gridImportkWh: Represents the amount of electricity imported from the grid in kilowatt-hours (kWh) at each time step.
+
+gridExportkWh: Represents the amount of electricity exported to the grid in kilowatt-hours (kWh) at each time step.
+
+gridkWh: Represents the amount of electricity drawn from or supplied to the grid at each time step.
+
+hour: Represents the hour of the day.
+
+hourExportTariff: Represents the tariff price for exporting electricity at a specific hour and season.
+
+hourImportTariff: Represents the tariff price for importing electricity at a specific hour and season.
+
+hourList: A list that stores the hours in a year.
+
+hourload: Represents the load profile for a specific hour.
+
+hourTariffPeriod: Represents the tariff period (low or high) at a specific hour and day.
+
+hours_in_year: A list that stores all the days and hours in a year.
+
+image: Represents an image file.
+
+image_tk: Represents the image file in a Tkinter-compatible format.
+
+index: Represents the index of a DataFrame row.
+
+item: Represents an item in the 'columnsToPlot' list.
+
+label: Represents a label widget in Tkinter.
+
+LgridExportkWh: A list that stores the exported electricity to the grid in kilowatt-hours (kWh) at each time step.
+
+LgridImportkWh: A list that stores the imported electricity from the grid in kilowatt-hours (kWh) at each time step.
+
+load: Represents the load profile at each time step.
+
+loadImport: Represents the 'load.csv' DataFrame imported using Pandas.
+
+mainRun: A function that runs the main simulation.
+
+month: Represents the month of the year.
+
+monthDaysEmpty: Represents the number of days in a month when the battery is empty.
+
+monthPlotVariable: Represents the selected month for plotting graphs.
+
+months: A list that stores the names of all months in a year.
+
+myDate: Represents the date in the format 'YYYY-MM-DD'.
+
+newBatkWh: Represents the updated remaining battery capacity in kilowatt-hours (kWh) at each time step.
+
+newGridkWh: Represents the updated electricity drawn from or supplied to the grid at each time step.
+
+newSolarGen: Represents the updated solar energy generation in kilowatt-hours (kWh) at each time step.
+
+open_new_window: A function that opens a new Tkinter window.
+
+pd: Represents the pandas library used for data manipulation and analysis.
+
+plt: Represents the matplotlib.pyplot module used for creating visualizations.
+
+previousBattery: Represents the battery capacity in kilowatt-hours (kWh) at the previous time step.
+
+previousGrid: Represents the electricity drawn from or supplied to the grid at the previous time step.
+
+previousSolar: Represents the solar energy generation in kilowatt-hours (kWh) at the previous time step.
+
+previousTimestamp: Represents the timestamp at the previous time step.
+
+residualEnergy: Represents the energy deficit or surplus at each time step.
+
+scrollbar: Represents the scrollbar widget in Tkinter.
+
+show_data_load: A function that displays the data from a DataFrame in a Tkinter window.
+
+solarArraykWp: Represents the capacity of the solar array in kilowatts peak (kWp).
+
+solarGen: Represents the solar energy generation at each time step.
+
+solarProfile: Represents the 'solar.csv' DataFrame imported using Pandas.
+
+start_month: Represents the starting month for iterating through months.
+
+summary_window: A function that displays the summary data from a DataFrame in a Tkinter window.
+
+tariffExRate: Represents the exchange rate for exporting electricity at a specific hour and season.
+
+tariffImRate: Represents the exchange rate for importing electricity at a specific hour and season.
+
+tariffPeriod: Represents the tariff period (low or high) at a specific hour and day.
+
+tariffStructure: Represents the 'tariff_structure.csv' DataFrame imported using Pandas.
+
+tariffs: Represents the 'tariffs.csv' DataFrame imported using Pandas.
+
+time_stamp: Represents the timestamp at each time step.
+
+tk: Represents the tkinter library used for creating graphical user interfaces (GUIs).
+
+ttk: Represents the themed widget submodule of the tkinter library.
+
+tree: Represents the treeview widget in Tkinter.
+
+updateValues: A function that updates the values in the treeview widget.
+
+updateValues_day: A function that updates the values in the treeview widget for a specific day.

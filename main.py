@@ -4,28 +4,38 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
+from PIL import Image, ImageTk
+
 
 
 #Variables
 year = 2023
-solarArraykWp=81
-batteryCapacitykWh=75
+dfSystemSettings = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\system_settings.csv")
+solarArraykWp=dfSystemSettings.iloc[0,0]
+batteryCapacitykWh=dfSystemSettings.iloc[1,0]
 
 
-loadImport = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\load.csv")
+loadImport = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\modifiedcsv.csv")
+#loadImport = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\load.csv")
 tariffStructure = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\tariffStructure.csv")
 
-developerX=1
-if developerX==0:
 
+
+def mainRun(solarArraykWpNew, batteryCapacitykWhNew):
+    global solarArraykWp, batteryCapacitykWh
+    solarArraykWp, batteryCapacitykWh = solarArraykWpNew, batteryCapacitykWhNew
     #imports and starting tables
 
-    summerMonths = [1, 2, 3, 4, 11, 12]
+    summerMonths = [1, 2, 3, 4, 10, 11, 12]
+    print(f"Progress: summer months:{summerMonths}, Solar: {solarArraykWp}kWp, Battery: {batteryCapacitykWh}kWh")
 
     tariffs=pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\tariff.csv")
     solarProfile=pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\solarprofile.csv")
 
-
+    systemSettings=[solarArraykWp,batteryCapacitykWh]
+    dfSystemSettings=pd.DataFrame()
+    dfSystemSettings['settings']=systemSettings
+    dfSystemSettings.to_csv('system_settings.csv', index=False)
 
     # Get all the months in the year
     months = [calendar.month_name[i] for i in range(1, 13)]
@@ -44,6 +54,7 @@ if developerX==0:
     tariffExRate=[]
     tariffImRate=[]
     load=[]
+    printMonth=-1
 
     for _, row in df.iterrows():
         month = row['Month']
@@ -68,10 +79,19 @@ if developerX==0:
         tariffExRate.append(hourExportTariff)
         tariffImRate.append(hourImportTariff)
 
-
+        if dayOfWeek in [1,7]:
+            weekDayType="Weekend"
+        else:
+            weekDayType="Week"
         # Add the load profile
-        hourload = loadImport.loc[(loadImport['Hour'] == hour), season].values[0]
+        loadImportFilter=loadImport[(loadImport['Week Type']==weekDayType)&(loadImport['Hour']==hour)]
+        loadImportFilter=loadImportFilter.iloc[:, 2:]
+        hourload = loadImportFilter.iloc[0,month-1]
         load.append(hourload)
+        if printMonth!=month:
+            print(f"Progress: month:{month}")
+
+        printMonth=month
 
     df['Season'] = summerWinter
     df['Weekday']=weekDay
@@ -79,8 +99,8 @@ if developerX==0:
     df['Import Rate']=tariffImRate
     df['Export Rate']=tariffExRate
     df['Load']=load
-    #print("%.2f" % floatNumber)
     df['solar']=solarProfile['AC System Output (W)']*solarArraykWp/1000
+    print(f"Progress: df created for {solarArraykWp}kWp,{batteryCapacitykWh}kWh, tariffs and seasons")
 
     #CALCULATIONS
     #for Grid/battery calc
@@ -90,16 +110,21 @@ if developerX==0:
     batterykWh=[]
     gridkWh=[]
     newBatkWh=batteryCapacitykWh
+
+    drainConditionList=['Peak', 'Standard']
+
     for i in range(len(df['Month'])):
-        if -df['for Grid/Batt'][i]>newBatkWh:
+        if -df['for Grid/Batt'][i]>newBatkWh and df['Tarrif Period'][i] in drainConditionList:
             newGridkWh=newBatkWh+df['for Grid/Batt'][i]
             newBatkWh=0
-        else:
+        elif df['Tarrif Period'][i] in drainConditionList:
             newBatkWh=newBatkWh+df['for Grid/Batt'][i]
             newGridkWh=0
             if newBatkWh>batteryCapacitykWh:
                 newGridkWh=newBatkWh-batteryCapacitykWh
                 newBatkWh=batteryCapacitykWh
+        else:
+            newGridkWh=df['for Grid/Batt'][i]
 
         batterykWh.append(newBatkWh)
         gridkWh.append(newGridkWh)
@@ -120,96 +145,138 @@ if developerX==0:
         LgridImportkWh.append(gridImportkWh)
     df['Grid Import kWh']=LgridImportkWh
     df['Grid Export kWh']=LgridExportkWh
-
+    df['Import Cost'] = df['Grid Import kWh'] * df['Import Rate'] * -1 / 100
+    df['Export Revenue'] = df['Grid Export kWh'] * df['Export Rate'] / 100
+    print(f"Progress: Calculations Completed")
     df.to_csv('output.csv', index=False)
-
-else:
-    setup=pd.read_csv(r'C:\Users\shanr\PycharmProjects\Pandas\output.csv')
-    df=pd.DataFrame(setup)
-
-df['Import Cost']=df['Grid Import kWh']*df['Import Rate']*-1/100
-df['Export Revenue']=df['Grid Export kWh']*df['Export Rate']/100
-
-#---------------------------todo get days empty as a summary
-print(df.columns)
-daysEmpty = df.groupby('Month').apply(lambda x: sum((x['BatterykWh'] == 0)))
-listOfMonths=[1,2,3,4,5,6,7,8,9,10,11,12]
-print(f'days Empty{daysEmpty}')
-
-# Plot the graph
-plt.bar(listOfMonths,daysEmpty)
-plt.xlabel('Month')
-plt.ylabel('Days')
-plt.title('Days Battery is empty in Month ')
-plt.show()
+    print(f"Progress: output file created")
 
 
-#-------------------------------
+    summary = df.groupby('Month').agg(
+        {'Load': 'sum', 'Excl Solar Cost': 'sum', 'Grid Import kWh': 'sum', 'Grid Export kWh': 'sum',
+         'Import Cost': 'sum', 'Export Revenue': 'sum'})
+    summary["Cost Saving"] = summary['Excl Solar Cost'] - summary['Import Cost']
+    summary['Total Impact'] = summary['Cost Saving'] + summary['Export Revenue']
 
-#todo print chart
-# Assuming the DataFrame is named 'df' and has a 'Date' column and a numeric column to plot
-import matplotlib.pyplot as plt
+    total_row = summary.sum(numeric_only=True)  # Calculate the total row
+    summary_with_total = summary._append(total_row, ignore_index=True)  # Append the total row to the summary DataFrame
 
-# Define the range of months and days
-start_month = 4
-end_month = 4
-days_in_month = 31  # Assuming maximum of 31 days in a month
+    columns_to_format = ['Excl Solar Cost', 'Import Cost', 'Export Revenue', 'Cost Saving', 'Total Impact']
+    summary_with_total[columns_to_format] = summary_with_total[columns_to_format].applymap(
+        lambda x: "R{:,.0f}".format(x))
 
-# Create a figure and axes for the plot
-fig, ax = plt.subplots()
+    columns_to_format = ['Load', 'Grid Import kWh', 'Grid Export kWh']
+    summary_with_total[columns_to_format] = summary_with_total[columns_to_format].applymap(
+        lambda x: "{:,.0f}".format(x))
 
-# Iterate through each month
-for month in range(start_month, end_month+1):
-    # Filter the DataFrame for the selected month
-    df_month = df[df['Month'] == month]
+    summary_with_total = summary_with_total.rename(index={summary_with_total.index[-1]: 'Total'})
 
-    # Iterate through each day in the month
-    for day in range(1, days_in_month+1):
-        # Filter the DataFrame for the selected day
-        df_day = df_month[df_month['Day'] == day]
+    summary_with_total.to_csv('summary.csv', index=False)
+    # print(summary_with_total)
+    # print(df.head())
 
-        # Plot the graph for the day
-        ax.plot(df_day['Hour'], df_day['BatterykWh'], label='Month {}, Day {}'.format(month, day))
+def plots():
+    global monthPlotVariable, plotMonths, df
+    # Get the current date and time
+    currentDatetime = datetime.now()
+    printDate = currentDatetime.strftime("%Y-%m-%d %H:%M:%S")
 
-# Set the x-axis label, y-axis label, and plot title
-ax.set_xlabel('Hour')
-ax.set_ylabel('kWh')
-ax.set_title('Graphs for All Days in Month{}'.format(month))
+    #Set output folder
+    outputFolder = 'C:\\Users\\shanr\\PycharmProjects\\Pandas\\venv\\Output Folder\\'
+
+    print("Exporting Plots")
+    daysEmptyMonthList=[]
+    daysEmptyValueList=[]
+    setup = pd.read_csv(r'C:\Users\shanr\PycharmProjects\Pandas\output.csv')
+    df = pd.DataFrame(setup)
+    for month in df['Month'].unique():
+        filteredDf=df[(df['Month']==month)&(df['BatterykWh'] ==0)]
+        monthDaysEmpty= filteredDf.groupby('Day').nunique()#.reset_index(name='Count')
+        monthDaysEmpty=len(monthDaysEmpty)
+        daysEmptyMonthList.append(month)
+        daysEmptyValueList.append(monthDaysEmpty)
+        #print(month, monthDaysEmpty)
+
+    # Plot the graph
+    fig1, ax1= plt.subplots()
+
+    ax1.bar(daysEmptyMonthList,daysEmptyValueList)
+    ax1.set_xlabel('Month')
+    # Set the number of steps on the x-axis
+    ax1.set_xticks(range(13))
+    ax1.set_ylabel('Days')
+    #plt.set_suptitle('Days Battery is empty in Month ',fontsize=16)
+    ax1.set_title(f'{solarArraykWp}kWp & {batteryCapacitykWh}kWh & {printDate}',fontsize=12)
+
+    filename=f"BatteryDaysEmpty.png"
+    plt.savefig(f"{outputFolder}{filename}", dpi=100)
+    print("Battery Days Exported to Output Folder")
 
 
-# Place the legend outside the plot to the right
-#ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    columnsToPlot = [['solar','Solar kWh'], ['BatterykWh', 'Battery kWh' ], ['Grid Import kWh', 'Grid Import kWh']] #syntax: column name, Graph Name
+    for item in columnsToPlot:
+        plt.figure()
 
-# Display the plot
-plt.show()
-#__________________________________________________
+        # Create a figure and axes for the plot
+        fig, ax = plt.subplots(4, 3, sharex='col', sharey='row', figsize=(12, 12))
+
+        # Set the main heading for the entire figure
+        fig.text(0.5, 0.92, f"{solarArraykWp} kWp & {batteryCapacitykWh} kWh - {printDate}", ha='center', fontsize=12)
+        fig.suptitle(item[1], fontsize=16)
+        plt.title(f"{solarArraykWp}kWp & {batteryCapacitykWh}kWh", y=1.05, fontsize=12)
+
+        # Define the range of months and days
+
+        for aMonth in range(1, 13):
+            start_month = aMonth
+            end_month = aMonth
+            days_in_month = 31  # Assuming maximum of 31 days in a month
+
+            # Iterate through each month
+            for month in range(start_month, end_month + 1):
+                # Filter the DataFrame for the selected month
+                df_month = df[df['Month'] == month]
+
+                # Iterate through each day in the month
+                for day in range(1, days_in_month + 1):
+                    # Filter the DataFrame for the selected day
+                    df_day = df_month[df_month['Day'] == day]
+
+                    # Plot the graph for the day
+                    row = (aMonth - 1) // 3  # Calculate the row index
+                    col = (aMonth - 1) % 3  # Calculate the column index
+                    ax[row, col].plot(df_day['Hour'], df_day[item[0]], label='Month {}, Day {}'.format(month, day))
+
+                # Set the x-axis label, y-axis label, and plot title for each subplot
+                row = (aMonth - 1) // 3  # Calculate the row index
+                col = (aMonth - 1) % 3  # Calculate the column index
+                ax[row, col].set_xlabel('Hour')
+                ax[row, col].set_ylabel('kWh')
+                ax[row, col].set_title('Month {}'.format(aMonth))
+
+        # Set the y-axis label for each row
+        for row in range(4):
+            ax[row, 0].set_ylabel('kWh')
+
+        # Set the x-axis label for each column
+        for col in range(3):
+            ax[3, col].set_xlabel('Hour')
+
+        # Adjust the spacing between subplots
+        plt.subplots_adjust(wspace=0.2, hspace=0.4)
+
+        # Display the plot
+
+        plt.savefig(f'{outputFolder}{item[1]}.png')
+        print(f"{item[1]} exported to Output Folder")
+        plt.close()
+        #plt.show()
+    print("Exports Complete")
+
+    #__________________________________________________
 
 
-
-
-#df.loc[df['Month'] == 1, 'ColumnName']
-#Excl Solar Cost,Grid Import kWh,Grid Export kWh
-summary = df.groupby('Month').agg({'Load': 'sum', 'Excl Solar Cost': 'sum', 'Grid Import kWh': 'sum', 'Grid Export kWh': 'sum','Import Cost': 'sum', 'Export Revenue': 'sum'})
-summary["Cost Saving"]=summary['Excl Solar Cost']-summary['Import Cost']
-summary['Total Impact'] = summary['Cost Saving']+summary['Export Revenue']
-
-total_row = summary.sum(numeric_only=True)  # Calculate the total row
-summary_with_total = summary._append(total_row, ignore_index=True)  # Append the total row to the summary DataFrame
-
-columns_to_format = ['Excl Solar Cost', 'Import Cost', 'Export Revenue', 'Cost Saving', 'Total Impact']
-summary_with_total[columns_to_format] = summary_with_total[columns_to_format].applymap(lambda x: "R{:,.0f}".format(x))
-
-columns_to_format = ['Load', 'Grid Import kWh', 'Grid Export kWh']
-summary_with_total[columns_to_format] = summary_with_total[columns_to_format].applymap(lambda x: "{:,.0f}".format(x))
-
-summary_with_total = summary_with_total.rename(index={summary_with_total.index[-1]: 'Total'})
-
-summary_with_total.to_csv('summary.csv', index=False)
-#print(summary_with_total)
-#print(df.head())
-
-#####TKINTER GUI
-#____________________________________________________
+#####TKINTER GUI#____________________________________________________
 
 def show_data_load():
     # Read the CSV file
@@ -257,8 +324,7 @@ all_dataframes = [(name, var) for name, var in locals().items() if isinstance(va
 
 def summary_window():
     # Read the CSV file
-    global summary_with_total
-    print(summary_with_total.index)
+    summary_with_total = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\summary.csv")
     dfLoad = summary_with_total.copy()
 
     # Clear existing rows in the tree
@@ -296,8 +362,52 @@ button_show_data = tk.Button(window, text="Load", command=show_data_load)
 button_open_new_window = tk.Button(window, text="Tariff Structure", command=open_new_window)
 button_open_summary = tk.Button(window, text="Summary", command=summary_window)
 button_close_show_window = tk.Button(window, text="Close Show Window", command=close_show_window)
+button_plots = tk.Button(window, text="Export Plots", command=plots)
+
+#----------------------- Create labels and input fields
+solar_label = tk.Label(window, text="Solar Array (kWp):")
+solar_label.pack()
+solar_entry = tk.Entry(window)
+solar_entry.pack()
+
+battery_label = tk.Label(window, text="Battery Capacity (kWh):")
+battery_label.pack()
+battery_entry = tk.Entry(window)
+battery_entry.pack()
+
+# Set the default values in the input fields
+solar_entry.insert(0, solarArraykWp)  # Previous default value
+battery_entry.insert(0, batteryCapacitykWh)  # Previous default value
+
+# Create the submit button
+def on_submit():
+    global solarArraykWp, batteryCapacitykWh
+    # Get user input values
+    solar_input = solar_entry.get()
+    battery_input = battery_entry.get()
+
+    # Validate and convert input values
+    try:
+        solarArraykWp = float(solar_input)
+        batteryCapacitykWh = float(battery_input)
+
+        # Call mainRun function with the user input values
+        mainRun(solarArraykWp, batteryCapacitykWh)
+
+        print("Success", "Calculation completed successfully!")
+    except ValueError:
+        print("Error", "Invalid input. Please enter numeric values for solar array and battery capacity.")
+
+submit_button = tk.Button(window, text="Submit", command=on_submit)
+submit_button.pack()
+#----------------------- Create labels and input fields
+
+
+
+
 button_close_app = tk.Button(window, text="Close Application", command=window.quit)
 
+button_plots.pack(pady=10)
 button_show_data.pack(pady=10)
 button_open_new_window.pack(pady=10)
 button_open_summary.pack(pady=10)

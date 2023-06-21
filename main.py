@@ -6,8 +6,6 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
 
-
-
 #Variables
 year = 2023
 dfSystemSettings = pd.read_csv(r"C:\Users\shanr\PycharmProjects\Pandas\system_settings.csv")
@@ -61,7 +59,7 @@ def mainRun(solarArraykWpNew, batteryCapacitykWhNew):
         day=row['Day']
         hour=row['Hour']
         myDate=str(f"{year}-{month}-{day}")
-        dayOfWeek=datetime.strptime(myDate, "%Y-%m-%d")
+        dayOfWeek=datetime.datetime.strptime(myDate, "%Y-%m-%d")
         weekDay.append(dayOfWeek.weekday()+1)
         dayOfWeek=dayOfWeek.weekday()+1
         if month in summerMonths:
@@ -144,7 +142,10 @@ def mainRun(solarArraykWpNew, batteryCapacitykWhNew):
         LgridExportkWh.append(gridExportkWh)
         LgridImportkWh.append(gridImportkWh)
     df['Grid Import kWh']=LgridImportkWh
+    # Create a new column for cumulative import
+    df['Cum Import kWh'] = df.groupby(['Month'])['Grid Import kWh'].cumsum()
     df['Grid Export kWh']=LgridExportkWh
+    df['Cum Export kWh'] = df.groupby(['Month'])['Grid Export kWh'].cumsum()
     df['Import Cost'] = df['Grid Import kWh'] * df['Import Rate'] * -1 / 100
     df['Export Revenue'] = df['Grid Export kWh'] * df['Export Rate'] / 100
     print(f"Progress: Calculations Completed")
@@ -171,7 +172,7 @@ def mainRun(solarArraykWpNew, batteryCapacitykWhNew):
 
     summary_with_total = summary_with_total.rename(index={summary_with_total.index[-1]: 'Total'})
 
-    summary_with_total.to_csv('summary.csv', index=False)
+    summary_with_total.to_csv('summary.csv', index=True)
     # print(summary_with_total)
     # print(df.head())
 
@@ -341,6 +342,65 @@ def summary_window():
     for index, row in dfLoad.iterrows():
         tree.insert("", "end", text=index, values=[index] + row.tolist())
 
+import datetime
+import matplotlib.pyplot as plt
+
+def print_load_profile():
+    global loadImport
+
+    # Get the current date and time
+    currentDatetime = datetime.datetime.now()
+    printDate = currentDatetime.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Set output folder
+    outputFolder = 'C:\\Users\\shanr\\PycharmProjects\\Pandas\\venv\\Output Folder\\'
+
+    # Create a figure and axes for the plot
+    fig, ax = plt.subplots(4, 3, sharex='col', sharey='row', figsize=(12, 12))
+
+    # Define the range of months
+    for aMonth in range(1, 13):
+        monthLoad = loadImport[['Week Type','Hour',str(aMonth)]]
+        weekLoad = monthLoad[monthLoad['Week Type'] == 'Week']
+        weekendLoad = monthLoad[monthLoad['Week Type'] == 'Weekend']
+
+        row = (aMonth - 1) // 3  # Calculate the row index
+        col = (aMonth - 1) % 3  # Calculate the column index
+        ax[row, col].plot(weekLoad['Hour'], weekLoad[str(aMonth)], label=f'{aMonth}, Week')
+        ax[row, col].plot(weekendLoad['Hour'], weekendLoad[str(aMonth)], label=f'{aMonth}, Weekend')
+
+        # Set the x-axis label, y-axis label, and plot title for each subplot
+        ax[row, col].set_xlabel('Hour')
+        ax[row, col].set_ylabel(str(aMonth))
+        ax[row, col].set_title(f'Month {aMonth}')
+
+    # Set the y-axis label for each row
+    for row in range(4):
+        ax[row, 0].set_ylabel('Load')
+
+    # Set the x-axis label for each column
+    for col in range(3):
+        ax[3, col].set_xlabel('Hour')
+
+    # Adjust the spacing between subplots
+    plt.subplots_adjust(wspace=0.2, hspace=0.4)
+
+    # Create a single legend at the bottom
+    # Create a single legend at the bottom
+    handles, labels = ax[3, 2].get_legend_handles_labels()
+    modified_labels = ['Week', 'Weekend']  # Modify the legend labels here
+    modified_handles = [h for h, l in zip(handles, labels) if l in modified_labels]
+    fig.legend(modified_handles, modified_labels, loc='lower center', ncol=2)
+
+    plt.savefig(f'{outputFolder}loadprofile.png')
+    #print(f"{item[1]} exported to Output Folder")
+    plt.close()
+    # plt.show()
+    print("Exports Complete")
+
+
+
+#------------------------------------
 all_dataframes = [(name, var) for name, var in locals().items() if isinstance(var, pd.DataFrame)]
 
 
@@ -361,6 +421,7 @@ tree.configure(yscroll=scrollbar.set)
 button_show_data = tk.Button(window, text="Load", command=show_data_load)
 button_open_new_window = tk.Button(window, text="Tariff Structure", command=open_new_window)
 button_open_summary = tk.Button(window, text="Summary", command=summary_window)
+button_export_load = tk.Button(window, text="Export Load Profiles", command=print_load_profile)
 button_close_show_window = tk.Button(window, text="Close Show Window", command=close_show_window)
 button_plots = tk.Button(window, text="Export Plots", command=plots)
 
@@ -398,6 +459,9 @@ def on_submit():
     except ValueError:
         print("Error", "Invalid input. Please enter numeric values for solar array and battery capacity.")
 
+
+
+
 submit_button = tk.Button(window, text="Submit", command=on_submit)
 submit_button.pack()
 #----------------------- Create labels and input fields
@@ -411,6 +475,7 @@ button_plots.pack(pady=10)
 button_show_data.pack(pady=10)
 button_open_new_window.pack(pady=10)
 button_open_summary.pack(pady=10)
+button_export_load.pack()
 button_close_show_window.pack(pady=10)
 button_close_app.pack(pady=10)
 tree.pack(side="left", fill="both", expand=True)
@@ -446,3 +511,6 @@ df['gridGenDemand']=gridGenDemandList
 
 print(df)
 """
+
+
+
